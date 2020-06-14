@@ -95,7 +95,7 @@ double JacobiMPI::run() {
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank);
     if(MPI_rank == MAIN_PROCESS) {
-        std::cout << "MPI size: " << MPI_size << std::endl;
+//        std::cout << "MPI size: " << MPI_size << std::endl;
         if (argc < 5) {
             std::cout << "usage: path1 path2 double path3\n"
                          "path1 - path to matrix\n"
@@ -131,12 +131,8 @@ double JacobiMPI::run() {
     broadcastInitial();
 
     if(MPI_rank == MAIN_PROCESS){
-        std::string s = outputs + "/time.log";
-        std::cout << s << "\n";
-        timeLog.open(s, std::ios_base::app);
         mainProcessRun();
-        std::cout << matrix_rows << " " << matrix_cols << " " << MPI_size << " " << calc_time << std::endl;
-        timeLog << matrix_rows << " " << matrix_cols << " " << MPI_size << " " << calc_time << std::endl;
+        std::cerr << matrix_rows << " " << matrix_cols << " " << MPI_size << " " << calc_time << std::endl;
     }
     else{
         otherProcessRun();
