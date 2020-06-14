@@ -6,9 +6,11 @@
 #define PARALLEL_PROGRAMMING_2_JACOBIMPI_H
 
 #include <vector>
-#include "matrix.h"
-#include <mpi.h>
+#include "mpi.h"
+#include <string>
+#include <fstream>
 
+typedef long double ld;
 
 class JacobiMPI{
 public:
@@ -18,39 +20,50 @@ public:
 
 private:
 
-    enum MPI_tags{
-        FREE,
-        MATRIX,
-        PRECISION,
-        RESULT,
-        INFO,
-        FAIL,
-        DONE,
+    enum{
+        DOUBLE_SEND_COEF = sizeof(double) / sizeof(MPI_DOUBLE), // it fails with ld
+        INT_SEND_COEF    = sizeof(int) / sizeof(MPI_INT),
+        MAIN_PROCESS     = 0,
     };
 
-    Matrix matrix;
-    std::vector<ld> result;
-    std::vector<ld> free;
+
+    ld** matrix;
+    ld* result;
+    ld* new_result;
+    ld* free;
     double precision;
-    bool failed = false;
-    double calc_time = -1;
-    const int MAIN_PROCESS = 0;
 
-    int MPI_size;
-    int MPI_rank;
-
+    std::string output;
+    std::ofstream log;
+    std::ofstream timeLog;
     int argc;
     char **argv;
 
-    ld getMaxVectorsDiff(const std::vector<ld> &a, const std::vector<ld> &b);
-    void solve(int index_from, int index_to);
+    int processPartEnd;
+    int processPartStart;
+    int matrix_part;
+
+    int matrix_rows;
+    int matrix_cols;
+    bool failed = false;
+    double calc_time = -1;
+    int MPI_size;
+    int MPI_rank;
+
+
+    ld getMaxVectorsDiff();
+    bool solvePart(int index_from, int index_to);
+    void startSolve();
+    void printInfo();
     void prepareMPI(int argc, char **argv);
     void stopMPI();
     void mainProcessRun();
     void otherProcessRun();
-
-    std::vector<ld> getResult();
-    void sendResult(int tag=RESULT);
+    void writeResult();
+    void readData();
+    void broadcastInitial();
+    void mergeResult();
+    void initOthers();
 };
 
 #endif //PARALLEL_PROGRAMMING_2_JACOBIMPI_H

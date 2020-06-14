@@ -3,4 +3,4 @@ project(parallel_programming_2)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(parallel_programming_2 main.cpp matrix.cpp matrix.h jacobiMPI.cpp jacobiMPI.h)
+add_executable(parallel_programming_2 main.cpp jacobiMPI.cpp jacobiMPI.h)
