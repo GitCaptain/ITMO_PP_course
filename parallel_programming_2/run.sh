@@ -1,24 +1,39 @@
 #!/bin/bash
 DEBUG=0
 
-if [ $DEBUG == 1 ]
-then
+if [ $DEBUG == 1 ]; then
   path=cmake-build-debug-mpich
-  echo debug
+  flags=''
+  echo -n debug
 else
   path=cmake-build-release-mpich
-  echo release
+  flags=-O3
+  echo -n release
 fi
 
-mpicxx main.cpp jacobiMPI.cpp -O3 -o $path/parallel_programming_2
-> outputs/timelog
+path1=in
+path2=inI
+out_name_template=out
+input_path=data
+output_path=outputs
+bin_name=parallel_programming_2
+
+rm ${output_path}/log*
+rm ${output_path}/out*
+
+binary=${path}/${bin_name}
+echo " name ${binary}"
+mpicxx main.cpp jacobiMPI.cpp $flags -o $binary
+
+rm ${output_path}/timelog
+touch ${output_path}/timelog
+
 for input in {0..2}
 do
   echo input $input
   for processes in 1 2 4
   do
-    echo -- with np $processes
-    mpiexec -n $processes ./${path}/parallel_programming_2 inputs/in${input} inputs/inI${input} 0.001 outputs/out${input} 2>>outputs/timelog
+    echo "-n $processes $binary ${input_path}/${path1}${input} ${input_path}/${path2}${input} 0.001 ${output_path}/${out_name_template}${input}"
+    mpiexec -n $processes $binary ${input_path}/${path1}${input} ${input_path}/${path2}${input} 0.001 ${output_path}/${out_name_template}${input} 2>>outputs/timelog
   done
 done
-

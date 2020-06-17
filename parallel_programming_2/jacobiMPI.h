@@ -21,9 +21,7 @@ public:
 private:
 
     enum{
-        DOUBLE_SEND_COEF = sizeof(double) / sizeof(MPI_DOUBLE), // it fails with ld
-        INT_SEND_COEF    = sizeof(int) / sizeof(MPI_INT),
-        MAIN_PROCESS     = 0,
+        MAIN_PROCESS = 0,
     };
 
 
@@ -31,11 +29,10 @@ private:
     ld* result;
     ld* new_result;
     ld* free;
-    double precision;
+    ld precision;
 
     std::string output;
     std::ofstream log;
-    std::ofstream timeLog;
     int argc;
     char **argv;
 
@@ -64,6 +61,7 @@ private:
     void broadcastInitial();
     void mergeResult();
     void initOthers();
+    std::pair<int, int> countProcessBounds(int process);
 };
 
 #endif //PARALLEL_PROGRAMMING_2_JACOBIMPI_H
