@@ -134,5 +134,12 @@ fabric.properties
 
 cmake-build-*/
 .idea/*
+*/.idea/*
 # End of https://www.toptal.com/developers/gitignore/api/clion,c++
 
+*/out*
+*/in*
+MPIH*
+*/report/
+parallel_programming_2/data/
+parallel_programming_4/times/
