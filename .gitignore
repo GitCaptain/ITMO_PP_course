@@ -140,6 +140,6 @@ cmake-build-*/
 */out*
 */in*
 MPIH*
-*/report/
+
 parallel_programming_2/data/
 parallel_programming_4/times/
