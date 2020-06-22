@@ -21,23 +21,25 @@ public:
 private:
 
     enum consts{
-        INT_SEND_COEF    = sizeof(int) / sizeof(MPI_INT),
-        MAIN_PROCESS     = 0,
+        MAIN_PROCESS = 0,
     };
 
     enum tags{
         ARRAY,
         SIZE,
+        INIT,
+        PIVOT
     };
 
-    int* array = nullptr;
+    int full_array_size = 0; // only for main process
+    int* full_array = nullptr; // only for main process
+    int* array_working_part = nullptr;
     int array_size = 0;
     int previous_array_size = 0;
     double calc_time = -1;
     int MPI_size = -1;
     int MPI_rank = -1;
     int iteration = 0;
-    int parent_process = -1;
 
     int argc;
     char **argv;
@@ -54,11 +56,11 @@ private:
     void mainProcessRun();
     void otherProcessRun();
     void writeResult();
-    void spawnProcess(int child_process);
     void waitInitialData();
     void sendResult();
     void quickSort(int from, int to);
-    void doOrder();
+    void sendInitialData();
+    int getPivot(int from, int to);
 };
 
 #endif //PARALLEL_PROGRAMMING_2_JACOBIMPI_H
