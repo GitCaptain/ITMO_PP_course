@@ -74,7 +74,7 @@ JacobiMPI::~JacobiMPI() {
     delete[] result;
     delete[] free;
     delete[] new_result;
-    for(int i = 0; i < matrix_rows; i++){
+    for(int i = 0; i < process_matrix_size; i++){
         delete[] matrix[i];
     }
     delete[] matrix;
@@ -124,14 +124,19 @@ double JacobiMPI::run() {
     matrix_part = matrix_rows / MPI_size;
 
     auto bounds = countProcessBounds(MPI_rank);
-    processPartStart = bounds.first;
-    processPartEnd = bounds.second;
+    process_part_start = bounds.first;
+    process_part_end = bounds.second;
+    process_matrix_size = process_part_end - process_part_start;
 
-    if(MPI_rank != MAIN_PROCESS){
+    if(MPI_rank == MAIN_PROCESS){
+        sendInitial();
+        process_matrix_size = matrix_rows;
+    }
+    else{
         initOthers();
+        recvInitial();
     }
 
-    broadcastInitial();
 
     if(MPI_rank == MAIN_PROCESS){
         mainProcessRun();
@@ -210,40 +215,54 @@ void JacobiMPI::readData() {
 
 
 void JacobiMPI::initOthers() {
-    new_result = new ld[matrix_rows];
     result = new ld[matrix_rows];
-    free = new ld[matrix_rows];
-    matrix = new ld*[matrix_rows];
-    for(int i = 0; i < matrix_rows; ++i){
+    new_result = new ld[matrix_rows];
+    free = new ld[process_matrix_size];
+    matrix = new ld*[process_matrix_size];
+    for(int i = 0; i < process_matrix_size; ++i){
         matrix[i] = new ld[matrix_cols];
     }
 //    log << "init success\n";
 }
 
 
-void JacobiMPI::broadcastInitial() {
+void JacobiMPI::sendInitial() {
     // broadcasting initial info
     MPI_Bcast(&precision, 1, MPI_LONG_DOUBLE, MAIN_PROCESS, MPI_COMM_WORLD);
-    MPI_Bcast(free, matrix_rows, MPI_LONG_DOUBLE, MAIN_PROCESS, MPI_COMM_WORLD);
-    for(int i = 0; i < matrix_rows; i++){
-        MPI_Bcast(matrix[i], matrix_cols, MPI_LONG_DOUBLE, MAIN_PROCESS, MPI_COMM_WORLD);
-    }
     MPI_Bcast(result, matrix_rows, MPI_LONG_DOUBLE, MAIN_PROCESS, MPI_COMM_WORLD);
+    MPI_Request r;
+    for(int process = 0; process < MPI_size; process++){
+        auto bounds = countProcessBounds(process);
+        MPI_Isend(free + bounds.first, bounds.second - bounds.first, MPI_LONG_DOUBLE, process, FREE, MPI_COMM_WORLD, &r);
+        for(int i = bounds.first; i < bounds.second; i++){
+            MPI_Isend(matrix[i], matrix_cols, MPI_LONG_DOUBLE, process, MATRIX, MPI_COMM_WORLD, &r);
+        }
+    }
 //    log << "initial broadcast success\n";
+}
+
+
+void JacobiMPI::recvInitial() {
+    MPI_Bcast(&precision, 1, MPI_LONG_DOUBLE, MAIN_PROCESS, MPI_COMM_WORLD);
+    MPI_Bcast(result, matrix_rows, MPI_LONG_DOUBLE, MAIN_PROCESS, MPI_COMM_WORLD);
+    MPI_Recv(free, process_part_end - process_part_start, MPI_LONG_DOUBLE, MAIN_PROCESS, FREE, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    for(int i = 0; i < process_matrix_size; i++){
+        MPI_Recv(matrix[i], matrix_cols, MPI_LONG_DOUBLE, MAIN_PROCESS, MATRIX, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
 }
 
 
 void JacobiMPI::startSolve() {
     while(true){
         //solve our part
-        bool over = solvePart(processPartStart, processPartEnd);
+        bool over = solvePart(process_part_start, process_part_end);
 //        printArr(new_result, matrix_rows, log,  "new result before merge");
         // get and merge new result
         mergeResult();
 //        printArr(new_result, matrix_rows, log,  "new result after merge");
 
         ld diff = getMaxVectorsDiff();
-//        std::cout << diff << " " << precision << " " << (diff < precision) << std::endl;
+//        log << diff << " " << precision << " " << (diff < precision) << std::endl;
         bool done = diff < precision;
 
         for(int i = 0; i < matrix_rows; i++){
@@ -265,20 +284,20 @@ void JacobiMPI::startSolve() {
 bool JacobiMPI::solvePart(int index_from, int index_to) {
     static int iteration = 0;
     static const int MAX_ITERATIONS = 1000;
-//    std::cout << "MPI rank: " << MPI_rank << " solves from: " << index_from << ", to: " << index_to << std::endl
-//              <<"iteration: " << iteration++ << std::endl;
+//    log << "solves from: " << index_from << ", to: " << index_to << std::endl << "iteration: " << iteration << std::endl;
+    int offset = (MPI_rank == MAIN_PROCESS ? 0 : index_from);
+//    log << "offset: " << offset << std::endl;
+
     for (int i = index_from; i < index_to; i++) {
         ld sum = 0;
+        int row = i - offset;
         for (int j = 0; j < matrix_cols; j++) {
             if (i == j) {
                 continue;
             }
-//            std::cout << "i, j: " << i << ", " << j << std::endl;
-//            std::cout << matrix[i][j] << " " << result[j] << " " << matrix[i][j] * result[j] << " " << sum << " ";
-            sum += matrix[i][j] * result[j];
-//            std::cout << sum << "\n";
+            sum += matrix[row][j] * result[j];
         }
-        new_result[i] = (free[i] - sum) / matrix[i][i];
+        new_result[i] = (free[row] - sum) / matrix[row][i];
     }
     iteration++;
     return iteration > MAX_ITERATIONS;
@@ -286,28 +305,31 @@ bool JacobiMPI::solvePart(int index_from, int index_to) {
 
 
 void JacobiMPI::printInfo() {
-    log << "rank: " << MPI_rank << " - started" << std::endl;
-
-    log << "matrix rows: " << matrix_rows << ", matrix cols: " << matrix_cols << std::endl;
-
-    log << "get precision: \n";
-    log << precision << std::endl;
-
-    log << "get free:\n";
-    printArr(free, matrix_rows, log, "free");
-
-    log << "get matrix:\n";
-    for(int i = 0; i < matrix_rows; i++){
-        for(int j = 0; j < matrix_cols; j++){
-            log << matrix[i][j] << " ";
-        }
-        log << std::endl;
-    }
-    log << "get result:\n";
-    for(int i = 0; i < matrix_rows; i++) {
-        log << result[i] << " ";
-    }
-    log << std::endl;
+//    log << "rank: " << MPI_rank << " - started" << std::endl;
+//
+//    log << "matrix rows: " << matrix_rows << ", matrix cols: " << matrix_cols << std::endl;
+//    log << "matrix rows for process: " << process_matrix_size << std::endl;
+//    log << "from: " << process_part_start << ", to: " << process_part_end << std::endl;
+//    log << "sz: " << process_part_end - process_part_start << std::endl;
+//
+//    log << "get precision: \n";
+//    log << precision << std::endl;
+//
+//    log << "get free:\n";
+//    printArr(free, process_matrix_size, log, "free");
+//
+//    log << "get matrix:\n";
+//    for(int i = 0; i < process_matrix_size; i++){
+//        for(int j = 0; j < matrix_cols; j++){
+//            log << matrix[i][j] << " ";
+//        }
+//        log << std::endl;
+//    }
+//    log << "get result:\n";
+//    for(int i = 0; i < matrix_rows; i++) {
+//        log << result[i] << " ";
+//    }
+//    log << std::endl;
 }
 
 std::pair<int, int> JacobiMPI::countProcessBounds(int process) {

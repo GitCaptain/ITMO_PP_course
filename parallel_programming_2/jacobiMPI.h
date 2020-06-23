@@ -22,6 +22,8 @@ private:
 
     enum{
         MAIN_PROCESS = 0,
+        FREE,
+        MATRIX,
     };
 
 
@@ -32,12 +34,13 @@ private:
     ld precision;
 
     std::string output;
-    std::ofstream log;
+//    std::ofstream log;
     int argc;
     char **argv;
 
-    int processPartEnd;
-    int processPartStart;
+    int process_part_end;
+    int process_part_start;
+    int process_matrix_size;
     int matrix_part;
 
     int matrix_rows;
@@ -58,7 +61,8 @@ private:
     void otherProcessRun();
     void writeResult();
     void readData();
-    void broadcastInitial();
+    void sendInitial();
+    void recvInitial();
     void mergeResult();
     void initOthers();
     std::pair<int, int> countProcessBounds(int process);

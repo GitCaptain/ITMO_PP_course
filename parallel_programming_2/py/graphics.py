@@ -59,7 +59,7 @@ class Graphic:
 
 
 if __name__ == '__main__':
-    file = "statistic_lab_2"
+    file = "../outputs/timelog"
     g = Graphic()
     g.parse_file(file)
     g.run()
