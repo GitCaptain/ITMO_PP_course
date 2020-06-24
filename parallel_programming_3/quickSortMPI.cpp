@@ -67,21 +67,21 @@ void QuickSortMPI::stopMPI() {
 
 double QuickSortMPI::run() {
 
-    MPI_Comm_size(MPI_COMM_WORLD, &MPI_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &MPI_initial_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &MPI_initial_rank);
 
     char num[3];
-    sprintf(num, "%d", MPI_rank);
+    sprintf(num, "%d", MPI_initial_rank);
     std::string outputs = "outputs";
     std::string path = outputs + std::string("/log") + std::string(num);
     log.open(path);
 
-    if(__builtin_popcount(MPI_rank) != 1){
+    if(__builtin_popcount(MPI_initial_rank) != 1){
         std::cout << "number of processes should be power of two.\n";
         exit(0);
     }
 
-    if(MPI_rank == MAIN_PROCESS){
+    if(MPI_initial_rank == MAIN_PROCESS){
         if (argc < 3) {
             std::cout << "usage: path1 path2 [d_type]\n"
                          "path1 - path to file which data has to be sorted,\n"
@@ -119,20 +119,14 @@ void QuickSortMPI::otherProcessRun(){
 
 
 void QuickSortMPI::startSolve() {
-
-    int neighbour_process = ((MPI_rank >> iteration) & 1)? MPI_rank - (1 << iteration): MPI_rank + (1 << iteration);
-
-    if((1<<iteration) == MPI_size){ // cant divide anymore
-        quickSort(0, array_size);
-        if(MPI_rank != MAIN_PROCESS) {
-            sendResult();
-        }
-        return;
+    while((1 << iteration) < MPI_initial_size ){
+        int pivot = getPivot();
+        broadcastPivot(pivot);
+        rearrangePart();
+        updateArr();
+        split();
     }
-    else{
-
-        return;
-    }
+    quickSort();
 }
 
 
@@ -190,7 +184,7 @@ void QuickSortMPI::writeResult() {
 
 
 void QuickSortMPI::printInfo() {
-    log << "rank: " << MPI_rank << " - started" << std::endl;
+    log << "rank: " << MPI_initial_rank << " - started" << std::endl;
     log << "array_working_part size: " << array_size << std::endl;
     printArr(array_working_part, array_size, log, "array_working_part");
 }
@@ -211,10 +205,10 @@ void QuickSortMPI::readInitialData() {
 
 void QuickSortMPI::sendInitialData() {
     MPI_Request r;
-    int part_size = array_size / MPI_size;
-    for(int process = 0; process < MPI_size; process++){
-        int first = MPI_rank * part_size;
-        int last = (process == MPI_size - 1 ? full_array_size : first + part_size);
+    int part_size = array_size / MPI_initial_size;
+    for(int process = 0; process < MPI_initial_size; process++){
+        int first = MPI_initial_rank * part_size;
+        int last = (process == MPI_initial_size - 1 ? full_array_size : first + part_size);
         int size = last-first+1;
         // cant Isend here, because we shouldn't rewrite or delete 'size' untill it is copied to MPI buffer
         MPI_Send(&size, 1, MPI_INT, process, SIZE, MPI_COMM_WORLD);

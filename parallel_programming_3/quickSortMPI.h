@@ -37,8 +37,8 @@ private:
     int array_size = 0;
     int previous_array_size = 0;
     double calc_time = -1;
-    int MPI_size = -1;
-    int MPI_rank = -1;
+    int MPI_initial_size = -1;
+    int MPI_initial_rank = -1;
     int iteration = 0;
 
     int argc;
