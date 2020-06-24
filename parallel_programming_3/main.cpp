@@ -8,6 +8,7 @@ int main(int argc, char **argv) {
 
     if(time >= 0){
         std::cout << "calculation time: " << time << std::endl;
+        std::cerr << time << std::endl;
     }
 
     return 0;

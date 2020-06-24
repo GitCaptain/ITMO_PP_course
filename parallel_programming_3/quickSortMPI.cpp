@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cstring>
 
-#define DEBUG 1
+#define DEBUG 0
 
 void readInitial(ld *&init, const std::string &path){
     std::ifstream in(path);
@@ -143,10 +143,11 @@ void QuickSortMPI::startSolve(MPI_Comm current_communicator) {
 
 
     if(cur_size == 1){
+        quickSort(0, array_size);
 #if DEBUG
         log << "sort and exit\n";
+        printArr(array_working_part, array_size, log, "sorted arr");
 #endif
-        quickSort(0, array_size);
         return;
     }
 
@@ -165,6 +166,7 @@ void QuickSortMPI::startSolve(MPI_Comm current_communicator) {
 
 #if DEBUG
     printArr(array_working_part, array_size, log, "aft rear, bef upd");
+    log << "mycolor: " << (cur_rank & 1) << ", my next order: " << 2 * order + (cur_rank & 1) << "\n";
 #endif
 
     updateArr(cur_rank, current_communicator);
@@ -231,6 +233,7 @@ void QuickSortMPI::readInitialData() {
     for(int i = 0; i < full_array_size; i++){
         in >> full_array[i];
     }
+    std::cerr << full_array_size << " " << MPI_initial_size << " ";
 }
 
 
@@ -357,21 +360,29 @@ void QuickSortMPI::recvResult() {
         MPI_Recv(&p_order, 1, MPI_INT, process, ORDER, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 #if DEBUG
-        log << "process: " << process << ", size: " << p_size << ", order: " << order << "\n";
+        log << "process: " << process << ", size: " << p_size << ", order: " << p_order << "\n";
 #endif
         counts[process] = p_size;
         orders[process] = p_order;
     }
 
+#ifdef DEBUG
+    printArr(counts, size, log, "counts");
+    printArr(orders, size, log, "orders");
+#endif
+
 
     // size is small enough to count displacements in time O(size^2)
-    for(int i = 0; i < size; i++){
-        for(int j = 0; j < size; j++){
-            if(orders[j] == orders[i] - 1){
-                displacements[i] = displacements[j] + counts[j];
+    for(int p_order = 0, offset = 0; p_order < size; p_order++){
+        for(int process = 0; process < size; process++){
+            if(orders[process] == p_order){
+                displacements[process] = offset;
 #if DEBUG
-                log << "dsp process "  << i << " = " << displacements[i] << "\n";
+                log << "dsp " << process << ": " << displacements[process]
+                    << ", its ord: " << orders[process] << ", its offset: " << offset << "\n";
 #endif
+                offset += counts[process];
+                break;
             }
         }
     }
