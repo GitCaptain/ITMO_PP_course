@@ -28,39 +28,42 @@ private:
         ARRAY,
         SIZE,
         INIT,
-        PIVOT
+        ORDER,
     };
 
     int full_array_size = 0; // only for main process
     int* full_array = nullptr; // only for main process
+    int MPI_initial_size;
+    int MPI_initial_rank;
     int* array_working_part = nullptr;
     int array_size = 0;
-    int previous_array_size = 0;
+    int split_pos = 0;
     double calc_time = -1;
-    int MPI_initial_size = -1;
-    int MPI_initial_rank = -1;
-    int iteration = 0;
+    int order = 0;
 
     int argc;
     char **argv;
 
-    std::vector<MPI_Request> requests;
     std::ofstream log;
 
     void readInitialData();
-    void rearrangePart(int from, int to);
-    void startSolve();
+    void rearrangePart(int pivot);
+    void startSolve(MPI_Comm current_communicator);
     void printInfo();
     void prepareMPI();
     void stopMPI();
     void mainProcessRun();
     void otherProcessRun();
     void writeResult();
+    void sendInitialData();
+    void copyInitialData();
     void waitInitialData();
     void sendResult();
+    void recvResult();
     void quickSort(int from, int to);
-    void sendInitialData();
     int getPivot(int from, int to);
+    void broadcastPivot(int &pivot, MPI_Comm current_communicator);
+    void updateArr(int rank, MPI_Comm communicator);
 };
 
 #endif //PARALLEL_PROGRAMMING_2_JACOBIMPI_H

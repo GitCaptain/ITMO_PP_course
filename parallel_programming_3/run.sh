@@ -11,7 +11,7 @@ else
   echo release
 fi
 
-input=5
+input=0
 in_name_template=vec
 out_name_template=out
 input_path=inputs
@@ -23,7 +23,7 @@ rm ${output_path}/out*
 
 binary=${path}/${bin_name}
 mpicxx main.cpp quickSortMPI.cpp $flags -o $binary
-mpiexec -n 1 $binary ${input_path}/${in_name_template}${input} ${output_path}/${out_name_template}${input}
+mpiexec -n 4 $binary ${input_path}/${in_name_template}${input} ${output_path}/${out_name_template}${input}
 
 #> outputs/timelog
 #for input in {0..2}
